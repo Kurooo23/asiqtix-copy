@@ -44,7 +44,7 @@ const IS_PROD = process.env.NODE_ENV === 'production'
 
 const ORIGINS_ENV = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
   .split(',').map(s => s.trim()).filter(Boolean)
-const DEV_DEFAULTS = ['http://localhost:5173', 'http://127.0.0.1:5173']
+const DEV_DEFAULTS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://asiqtix-utama.vercel.app/']
 const ALLOWLIST = IS_PROD ? ORIGINS_ENV : (ORIGINS_ENV.length ? ORIGINS_ENV : DEV_DEFAULTS)
 
 const app = express()
