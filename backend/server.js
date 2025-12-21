@@ -47,6 +47,24 @@ const ORIGINS_ENV = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
 const DEV_DEFAULTS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://asiqtix-utama.vercel.app/']
 const ALLOWLIST = IS_PROD ? ORIGINS_ENV : (ORIGINS_ENV.length ? ORIGINS_ENV : DEV_DEFAULTS)
 
+const corsOptions = {
+  origin: (origin, cb) => {
+    // allow request tanpa Origin (curl/postman/healthcheck)
+    if (!origin) return cb(null, true)
+
+    if (ALLOWLIST.includes(origin)) return cb(null, true)
+
+    // tolak dengan jelas (bukan crash 500)
+    return cb(null, false)
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}
+
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
+
 const app = express()
 app.disable('x-powered-by')
 
