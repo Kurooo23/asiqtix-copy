@@ -44,7 +44,7 @@ const IS_PROD = process.env.NODE_ENV === 'production'
 
 const ORIGINS_ENV = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
   .split(',').map(s => s.trim()).filter(Boolean)
-const DEV_DEFAULTS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://asiqtix.vercel.app']
+const DEV_DEFAULTS = ['http://localhost:5173', 'http://127.0.0.1:5173']
 const ALLOWLIST = IS_PROD ? ORIGINS_ENV : (ORIGINS_ENV.length ? ORIGINS_ENV : DEV_DEFAULTS)
 
 const app = express()
@@ -199,18 +199,7 @@ const eventCreateSchema = z.object({
   listed: z.boolean().optional().default(true),
   chain_event_id: z.number().int().positive().optional()   // eventId dari smart contract ⬅️ ini ditambah 25-11-2025
 })
-const eventUpdateSchema = z.object({
-  title: z.string().min(1).max(160).optional(),
-  date_iso: z.string().min(10).optional(),
-  venue: z.string().min(1).max(160).optional(),
-  description: z.string().max(4000).optional(),
-  image_url: z.string().url().nullable().optional(),
-  price_idr: z.number().int().min(0).optional(),                 // harga tiket (Rp) 25-11-2025
-  // price_pol: z.number().min(0).optional(), diganti jadi price_idr
-  total_tickets: z.number().int().min(0).optional(),
-  listed: z.boolean().optional(),
-  chain_event_id: z.number().int().positive().optional()   // eventId dari smart contract ⬅️ ini ditambah 25-11-2025
-})
+
 
 /* =========================
    SIWE-lite: Nonce & Verify
@@ -299,66 +288,6 @@ app.get('/api/me', requireAddress, async (req, res) => {
 /* =========================
    PRICE POL→IDR (cache)
    ========================= */
-const UA = 'tickety-price/1.0 (+local dev)'
-const PRICE_TTL_MS = 8_000
-let priceCache = { idr: null, src: null, ts: 0, staleReason: null }
-const httpJSON = async (url, { timeout = 6000 } = {}) => {
-  const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), timeout)
-  try {
-    const r = await fetch(url, { signal: ctrl.signal, headers: { 'accept': 'application/json', 'user-agent': UA } })
-    if (!r.ok) throw new Error(`HTTP ${r.status} @ ${url}`)
-    return await r.json()
-  } finally { clearTimeout(t) }
-}
-const usdIdrCache = { v: null, ts: 0 }
-async function getUsdIdr() {
-  const now = Date.now()
-  if (usdIdrCache.v && now - usdIdrCache.ts < 10 * 60_000) return usdIdrCache.v
-  try { const j = await httpJSON('https://api.exchangerate.host/latest?base=USD&symbols=IDR'); const v = Number(j?.rates?.IDR); if (v) { usdIdrCache.v = v; usdIdrCache.ts = now; return v } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://api.frankfurter.app/latest?from=USD&to=IDR'); const v = Number(j?.rates?.IDR); if (v) { usdIdrCache.v = v; usdIdrCache.ts = now; return v } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://open.er-api.com/v6/latest/USD'); const v = Number(j?.rates?.IDR); if (v) { usdIdrCache.v = v; usdIdrCache.ts = now; return v } } catch {
-    // ignored
-  }
-  throw new Error('USD→IDR unavailable')
-}
-async function trySpotUSD() {
-  try { const j = await httpJSON('https://api.binance.com/api/v3/ticker/price?symbol=POLUSDT'); const p = Number(j?.price); if (p) return { p, src: 'binance:POLUSDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://api.binance.com/api/v3/ticker/price?symbol=MATICUSDT'); const p = Number(j?.price); if (p) return { p, src: 'binance:MATICUSDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://www.okx.com/api/v5/market/ticker?instId=POL-USDT'); const p = Number(j?.data?.[0]?.last); if (p) return { p, src: 'okx:POL-USDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://www.okx.com/api/v5/market/ticker?instId=MATIC-USDT'); const p = Number(j?.data?.[0]?.last); if (p) return { p, src: 'okx:MATICUSDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://api.bybit.com/v5/market/tickers?category=spot&symbol=POLUSDT'); const p = Number(j?.result?.list?.[0]?.lastPrice); if (p) return { p, src: 'bybit:POLUSDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://api.bybit.com/v5/market/tickers?category=spot&symbol=MATICUSDT'); const p = Number(j?.result?.list?.[0]?.lastPrice); if (p) return { p, src: 'bybit:MATICUSDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://api.mexc.com/api/v3/ticker/price?symbol=POLUSDT'); const p = Number(j?.price); if (p) return { p, src: 'mexc:POLUSDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://api.mexc.com/api/v3/ticker/price?symbol=MATICUSDT'); const p = Number(j?.price); if (p) return { p, src: 'mexc:MATICUSDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://api.gateio.ws/api/v4/spot/tickers?currency_pair=POL_USDT'); const p = Number(j?.[0]?.last); if (p) return { p, src: 'gate:POL_USDT' } } catch {
-    // ignored
-  }
-  try { const j = await httpJSON('https://api.gateio.ws/api/v4/spot/tickers?currency_pair=MATIC_USDT'); const p = Number(j?.[0]?.last); if (p) return { p, src: 'gate:MATIC_USDT' } } catch {
-    // ignored
-  }
-  throw new Error('All exchanges failed')
-}
 app.get('/api/price/pol', async (_req, res) => {
   try {
     const priceIdr = await fetchPolIdrRate()

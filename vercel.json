@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "https://asiqtix-production.up.railway.app/" }
+    { "source": "/(.*)", "destination": "./" }
   ]
 }

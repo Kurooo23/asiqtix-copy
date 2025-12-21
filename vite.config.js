@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
-      '/api': { target: 'https://asiqtix-production.up.railway.app/', changeOrigin: true, secure: false },
+      '/api': { target: 'http://localhost:3001/', changeOrigin: true, secure: false },
     },
   },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
