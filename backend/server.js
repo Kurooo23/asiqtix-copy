@@ -283,7 +283,7 @@ app.post('/api/verify', async (req, res) => {
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    env: process.env.NODE_ENV || 'dev',
+    env: process.env.NODE_ENV || 'production',
     port: PORT,
     cors_allowlist: ALLOWLIST,
     time: new Date().toISOString()
@@ -797,6 +797,6 @@ app.use((err, _req, res, _next) => {
    ========================= */
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`[server] API & Socket listening on port ${PORT}`)
-  console.log(`[server] NODE_ENV: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`[server] NODE_ENV: ${process.env.NODE_ENV || 'production'}`)
   console.log(`[server] CORS allowlist: ${ALLOWLIST.length ? ALLOWLIST.join(', ') : '(empty)'}`)
 })
