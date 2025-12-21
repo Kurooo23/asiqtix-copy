@@ -1,5 +1,8 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "./" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://asiqtix-copy-production.up.railway.app/"
+    }
   ]
 }
