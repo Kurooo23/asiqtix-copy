@@ -40,11 +40,11 @@ async function fetchPolIdrRate() {
    ENV & SERVER
    ========================= */
 const PORT = Number(process.env.PORT) || 3001
-const IS_PROD = process.env.NODE_ENV === 'production'
+const IS_PROD = process.env.NODE_ENV === 'development'
 
 const ORIGINS_ENV = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
   .split(',').map(s => s.trim()).filter(Boolean)
-const DEV_DEFAULTS = ['http://localhost:5173', 'http://127.0.0.1:5173',  'https://asiqtixutama.vercel.app/']
+const DEV_DEFAULTS = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://192.168.1.8:4173/', 'https://asiqtixutama.vercel.app/']
 const ALLOWLIST = IS_PROD ? ORIGINS_ENV : (ORIGINS_ENV.length ? ORIGINS_ENV : DEV_DEFAULTS)
 
 const app = express()
