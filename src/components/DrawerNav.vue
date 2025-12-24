@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, watch, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 
 const props = defineProps({ modelValue: { type: Boolean, required: true } })
@@ -12,9 +12,76 @@ const isOpen = computed({
 })
 function close(){ isOpen.value = false }
 
+/* ── Role state ─────────────────────────────────────────────── */
+const role = ref('')         // 'customer' | 'promoter' | 'admin' | ''
+const account = ref('')
+
+const hasMM = typeof window !== 'undefined' && !!window.ethereum
+const RAW_BASE = (import.meta.env?.VITE_API_BASE || 'http://localhost:3001').replace(/\/+$/, '')
+const API_BASE = `${RAW_BASE}/api`
+
+async function hydrateAccount () {
+  if (!hasMM) { account.value = ''; return }
+  try {
+    const accs = await window.ethereum.request({ method: 'eth_accounts' })
+    account.value = (accs?.[0] || '').toLowerCase()
+  } catch {
+    account.value = ''
+  }
+}
+
+async function hydrateRole () {
+  role.value = '' // reset (loading state)
+  if (!account.value) { role.value = 'customer'; return }
+
+  try {
+    const res = await fetch(`${API_BASE}/me`, {
+      headers: { 'x-wallet-address': account.value }
+    })
+    const data = await res.json().catch(() => null)
+
+    if (!res.ok) {
+      // fallback aman: treat as customer
+      role.value = 'customer'
+      return
+    }
+
+    const r = (data?.role || 'customer').toString().toLowerCase()
+    role.value = (r === 'promotor') ? 'promoter' : r
+  } catch {
+    role.value = 'customer'
+  }
+}
+
+async function hydrateIdentity () {
+  await hydrateAccount()
+  await hydrateRole()
+}
+
+function onAccountsChanged (accs) {
+  account.value = (accs?.[0] || '').toLowerCase()
+  hydrateRole()
+}
+
 function onKey(e){ if (e.key === 'Escape') close() }
-onMounted(() => window.addEventListener('keydown', onKey))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+
+onMounted(async () => {
+  window.addEventListener('keydown', onKey)
+
+  await hydrateIdentity()
+
+  if (hasMM) {
+    window.ethereum.on?.('accountsChanged', onAccountsChanged)
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey)
+  if (hasMM) {
+    window.ethereum.removeListener?.('accountsChanged', onAccountsChanged)
+  }
+})
+
 watch(() => route.fullPath, close)
 </script>
 
@@ -28,6 +95,18 @@ watch(() => route.fullPath, close)
         <RouterLink class="link" active-class="active" to="/profile" @click="close">Profile</RouterLink>
         <RouterLink class="link" active-class="active" to="/wallet"  @click="close">Wallet</RouterLink>
         <RouterLink class="link" active-class="active" to="/history" @click="close">History</RouterLink>
+
+        <!-- ✅ Hanya promotor yang melihat Scan QR -->
+        <RouterLink
+          v-if="role === 'promoter'"
+          class="link"
+          active-class="active"
+          to="/scan"
+          @click="close"
+        >
+          Scan QR
+        </RouterLink>
+
         <RouterLink class="link-btn" to="/logout" @click="close">Log out</RouterLink>
       </nav>
     </div>

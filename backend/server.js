@@ -626,6 +626,55 @@ app.get(['/api/transactions', '/transactions'], requireAddress, async (req, res)
   res.json(data)
 })
 
+// Buat Scan Kode QR
+// PROMOTER ONLY: verify ticket by transaction UUID (from QR)
+app.get('/api/tickets/verify/:txId', requireAddress, requireRole(['promoter']), async (req, res) => {
+  const wallet = req.walletAddress // promotor yg request
+  const txId = String(req.params.txId)
+  const expectedEventId = req.query.eventId ? String(req.query.eventId) : null
+
+  // 1) Ambil transaksi
+  const { data: tx, error: txErr } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', txId)
+    .maybeSingle()
+
+  if (txErr) return res.status(500).json({ error: txErr.message })
+  if (!tx) return res.status(404).json({ error: 'ticket_not_found' })
+
+  // Optional tapi bagus: pastikan ini memang pembelian tiket
+  if (String(tx.kind || '').toLowerCase() !== 'purchase') {
+    return res.status(400).json({ error: 'not_a_ticket_purchase' })
+  }
+
+  // 2) Transaksi harus punya ref_id (event id)
+  const eventId = tx.ref_id
+  if (!eventId) return res.status(400).json({ error: 'ticket_has_no_event' })
+
+  // 3) Ambil event
+  const { data: ev, error: evErr } = await supabase
+    .from('events')
+    .select('id,title,date_iso,venue,image_url,promoter_wallet')
+    .eq('id', eventId)
+    .maybeSingle()
+
+  if (evErr) return res.status(500).json({ error: evErr.message })
+  if (!ev) return res.status(404).json({ error: 'event_not_found' })
+
+  // 4) HARD RULE: promotor hanya boleh scan event miliknya
+  if (String(ev.promoter_wallet || '').toLowerCase() !== wallet) {
+    return res.status(403).json({ error: 'forbidden_not_your_event' })
+  }
+
+  // 5) (Opsional) kalau halaman scan memilih event tertentu, pastikan cocok
+  if (expectedEventId && expectedEventId !== String(ev.id)) {
+    return res.status(403).json({ error: 'forbidden_wrong_event' })
+  }
+
+  return res.json({ ok: true, tx, event: ev })
+})
+
 // POST topup — alias /api/topup dan /topup
 app.post(['/api/topup', '/topup'], requireAddress, async (req, res) => {
   const parsed = topupSchema.safeParse(req.body)
