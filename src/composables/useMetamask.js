@@ -80,7 +80,7 @@ export async function switchToPolygonAmoy () { return ensureChain('amoy') }
 
 export { account, chainId }
 
-/* 🔧 Backward-compatible named export */
+/*  Backward-compatible named export */
 export function useMetamask () {
   return {
     connect,
