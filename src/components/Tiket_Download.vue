@@ -28,6 +28,10 @@ const props = defineProps({
   fallbackBannerUrl: {
     type: String,
     default: ''
+  },
+  transactionId: {
+    type: String,
+    default: ''
   }
 })
 
@@ -109,7 +113,7 @@ async function handleClick () {
     const dateIso = meta?.date_iso || null
     const bannerUrl = meta?.image_url || meta?.poster_url || meta?.banner_url || props.fallbackBannerUrl || ''
     const timeText = fmtTicketDate(dateIso || props.fallbackDate)
-    const ticketId = props.ticketCode || meta?.id || props.eventId || '-'
+    const ticketId = props.transactionId || props.ticketCode || '-'
 
     await generateTicketImage({
       title,

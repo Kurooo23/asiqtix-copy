@@ -149,14 +149,15 @@ async function loadLedgerPurchases () {
     .filter(x => (x?.kind || '').toLowerCase() === 'purchase')
     .map(x => {
       const createdIso = x.created_at
-      const ticketId = (x.ticket_id || x.ticket_no || x.ref_id || x.id || '').toString()
+      const ticketId = (x.id || '').toString()
+      const booking = ticketId.replace(/-/g, '').slice(0, 16)
 
       return {
         _sortAt: +new Date(createdIso),
         id: x.id,
         title: 'Ticket purchase',
         date: fmtDate(createdIso),
-        booking: ticketId.slice(0, 16),
+        booking,
         price: fmtIdr(x.amount),
         status: x.status || 'Successful',
 
